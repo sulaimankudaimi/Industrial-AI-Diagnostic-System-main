@@ -8,11 +8,13 @@ from pathlib import Path
 
 import pytest
 
+from diagnostic.data import download
 from diagnostic.data.download import (
     RemoteFile,
     build_parser,
     download_file,
     extract_zip,
+    main,
     md5_of,
     needs_download,
     parse_record,
@@ -139,3 +141,75 @@ def test_build_parser_defaults() -> None:
     assert args.extract is False
     assert args.all is False
     assert args.record_id == 3384388
+
+
+def test_download_file_resumes_partial(tmp_path: Path) -> None:
+    source = tmp_path / "src.bin"
+    source.write_bytes(b"payload-data" * 100)
+    dest = tmp_path / "dst.bin"
+    dest.write_bytes(b"partial")
+    download_file(_remote_for(source), dest)
+    assert dest.read_bytes() == source.read_bytes()
+
+
+def _entry(path: Path) -> dict:
+    return {
+        "key": path.name,
+        "size": path.stat().st_size,
+        "checksum": f"md5:{md5_of(path)}",
+        "links": {"self": path.as_uri()},
+    }
+
+
+def _config_file(tmp_path: Path) -> Path:
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        "\n".join(
+            [
+                f"raw_dir: {(tmp_path / 'mimii').as_posix()}",
+                f"splits_dir: {(tmp_path / 'splits').as_posix()}",
+                "machine_type: fan",
+                "snr_db: 6",
+                "seeds: [0]",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return config
+
+
+def test_main_list_is_dry_run(tmp_path: Path, monkeypatch, capsys) -> None:
+    source = tmp_path / "6_dB_fan.zip"
+    source.write_bytes(b"zipbytes")
+    monkeypatch.setattr(download, "fetch_record", lambda *a, **k: {"files": [_entry(source)]})
+
+    assert main(["--config", str(_config_file(tmp_path)), "--list"]) == 0
+    out = capsys.readouterr().out
+    assert "6_dB_fan.zip" in out
+    assert "dry run" in out
+    assert not (tmp_path / "mimii" / "6_dB_fan.zip").exists()
+
+
+def test_main_download_and_extract(tmp_path: Path, monkeypatch) -> None:
+    archive = tmp_path / "6_dB_fan.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("6_dB_fan/id_00/normal/a.wav", b"RIFF")
+    monkeypatch.setattr(download, "fetch_record", lambda *a, **k: {"files": [_entry(archive)]})
+
+    assert main(["--config", str(_config_file(tmp_path)), "--download", "--extract"]) == 0
+    assert (tmp_path / "mimii" / "6_dB_fan" / "id_00" / "normal" / "a.wav").is_file()
+
+
+def test_main_download_all(tmp_path: Path, monkeypatch) -> None:
+    first = tmp_path / "6_dB_fan.zip"
+    first.write_bytes(b"a")
+    second = tmp_path / "0_dB_pump.zip"
+    second.write_bytes(b"b")
+    monkeypatch.setattr(
+        download, "fetch_record", lambda *a, **k: {"files": [_entry(first), _entry(second)]}
+    )
+
+    assert main(["--config", str(_config_file(tmp_path)), "--download", "--all"]) == 0
+    assert (tmp_path / "mimii" / "6_dB_fan.zip").is_file()
+    assert (tmp_path / "mimii" / "0_dB_pump.zip").is_file()
