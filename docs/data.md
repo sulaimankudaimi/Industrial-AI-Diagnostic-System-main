@@ -68,18 +68,24 @@ per-group counts, the seed, and a 12-char SHA-256 content hash.
 # Inventory + write split manifests for every configured seed
 .\.venv\Scripts\python.exe -m diagnostic.data.inspect --config configs/data/mimii_fan_6db.yaml --save-splits
 
-# List remote files (one HTTPS metadata request; downloads nothing)
+# List remote files for the configured machine_type, all SNRs (one HTTPS
+# metadata request; downloads nothing)
 .\.venv\Scripts\python.exe -m diagnostic.data.download --config configs/data/mimii_fan_6db.yaml --list
 
 # Opt-in download for the configured type/SNR, then extract
 .\.venv\Scripts\python.exe -m diagnostic.data.download --config configs/data/mimii_fan_6db.yaml --download --extract
 
+# Same, but delete the zip after a successful extraction
+.\.venv\Scripts\python.exe -m diagnostic.data.download --config configs/data/mimii_fan_6db.yaml --download --extract --delete-zip
+
 # Download every zip in the record
 .\.venv\Scripts\python.exe -m diagnostic.data.download --config configs/data/mimii_fan_6db.yaml --download --all
 ```
 
-Downloads are resumable (HTTP `Range`) and verified against the MD5 from the
-Zenodo metadata; the default is a dry run.
+`--list` runs on its own and always exits without downloading; `--download` is
+the only flag that fetches data. Downloads are resumable (HTTP `Range`) and
+verified against the MD5 from the Zenodo metadata. `--delete-zip` is refused
+unless `--extract` is also given, and only deletes after extraction succeeds.
 
 ## Tests
 

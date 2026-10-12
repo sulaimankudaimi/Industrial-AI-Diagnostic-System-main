@@ -17,7 +17,7 @@ Detect abnormal machine sounds early, on a single physical machine, with very fe
 | D9 | Data and models are never in git; they live in data/ and models/ (ignored). | Repo stays small and clean. |
 | D10 | Legacy code is frozen under legacy/ and tag v0-legacy; it is not fixed. | It is a documented baseline only. |
 | D11 | MIMII zips extract under data/raw/mimii/<snr>_dB_<type>/id_XX/{normal,abnormal}/*.wav. Discovery tolerates extra nesting, always sorts, and never truncates. Channel 0 is selected. | Reproducible, stable file inventory; avoids the legacy os.listdir ordering bug. |
-| D12 | Downloads are opt-in (`--download`), resumable via HTTP Range, and MD5-verified against the Zenodo record metadata; the default is a dry-run listing. | Large files, flaky links; never fetch implicitly and never trust a partial file. |
+| D12 | Downloads are opt-in (`--download`), resumable via HTTP Range, and MD5-verified against the Zenodo record metadata; the default is a dry-run listing, and `--delete-zip` removes a zip only after a verified extraction. | Large files, flaky links; never fetch implicitly and never trust a partial file. |
 | D13 | Splits are persisted as JSON manifests in data/splits/ named <type>_<snr>dB_<id>_seed<seed>.json, storing paths relative to raw_dir plus counts and a short content hash. | Auditable, portable, and diffable split definitions. |
 
 ## Roadmap (phases)
