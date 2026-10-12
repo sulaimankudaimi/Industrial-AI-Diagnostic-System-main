@@ -15,7 +15,7 @@ Acoustic anomaly detection for rotating industrial machines. A reproducible, tes
 - Install:  python -m pip install -e ".[dev,ml,app]"
 - Lint:     python -m ruff check .   and   python -m ruff format --check .
 - Test:     python -m pytest -q   (CI runs: pytest -m "not ml")
-- Hooks:    python -m pre-commit run --all-files
+- Hooks:    python -m pre_commit run --all-files
 
 ## Architecture rules
 - src layout, package "diagnostic": data, features, models, training, inference.
@@ -42,3 +42,9 @@ Tests pass, lint clean, docs updated if a decision or interface changed, final r
 
 ## Domain facts (MIMII)
 Machine types: fan, pump, slider, valve; 4 machine IDs each (id_00, id_02, id_04, id_06). Recordings: 10 s, 16 kHz, 8 channels, labels normal/abnormal, noise levels 6, 0 and -6 dB (SNR). Zenodo record 3384388.
+
+## Lessons learned
+- Anchor .gitignore patterns for top-level folders (/data/, /models/, /runs/); unanchored patterns also hide src/diagnostic/data and src/diagnostic/models.
+- The pre-commit module is invoked as: python -m pre_commit (underscore).
+- ruff and pre-commit exclude legacy/ on purpose; never remove that exclusion.
+- Verify renames with: git diff -M --stat main HEAD (do not restrict the pathspec).
