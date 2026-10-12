@@ -25,6 +25,14 @@ data/
 .env
 .streamlit/secrets.toml
 
+# Model artifacts / run outputs
+models/
+runs/
+*.wav
+
+# Local scratch
+notebook_code.txt
+
 # Misc
 temp_spec.png
 .DS_Store
