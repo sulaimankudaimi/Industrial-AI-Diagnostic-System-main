@@ -16,6 +16,8 @@ Acoustic anomaly detection for rotating industrial machines. A reproducible, tes
 - Lint:     python -m ruff check .   and   python -m ruff format --check .
 - Test:     python -m pytest -q   (CI runs: pytest -m "not ml")
 - Hooks:    python -m pre_commit run --all-files
+- Data:     python -m diagnostic.data.inspect  --config configs/data/mimii_fan_6db.yaml [--save-splits]
+- Fetch:    python -m diagnostic.data.download --config configs/data/mimii_fan_6db.yaml [--list | --download [--all] [--extract [--delete-zip]]]
 
 ## Architecture rules
 - src layout, package "diagnostic": data, features, models, training, inference.
