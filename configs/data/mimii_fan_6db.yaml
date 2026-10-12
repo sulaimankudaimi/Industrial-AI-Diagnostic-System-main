@@ -1,0 +1,8 @@
+raw_dir: data/raw/mimii
+splits_dir: data/splits
+machine_type: fan
+snr_db: 6
+sample_rate: 16000
+channel: 0
+val_fraction: 0.1
+seeds: [0, 1, 2, 3, 4]
