@@ -16,18 +16,18 @@ htmlcov/
 # Jupyter
 .ipynb_checkpoints/
 
-# Models / data
+# Models / data (root-level only, so src/diagnostic/data stays tracked)
 *.h5
 *.keras
-data/
+/data/
 
 # Environment / secrets
 .env
 .streamlit/secrets.toml
 
-# Model artifacts / run outputs
-models/
-runs/
+# Model artifacts / run outputs (root-level only)
+/models/
+/runs/
 *.wav
 
 # Local scratch
