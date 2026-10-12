@@ -14,6 +14,7 @@ from diagnostic.data.download import (
     build_parser,
     download_file,
     extract_zip,
+    filter_by_machine_type,
     main,
     md5_of,
     needs_download,
@@ -90,6 +91,20 @@ def test_select_files() -> None:
     assert [f.key for f in select_files(files, "pump", -6)] == ["-6_dB_pump.zip"]
     with pytest.raises(ValueError, match="no file"):
         select_files(files, "fan", 0)
+
+
+def test_filter_by_machine_type() -> None:
+    files = [
+        RemoteFile("6_dB_fan.zip", 1, "md5:a", "u"),
+        RemoteFile("0_dB_fan.zip", 1, "md5:b", "u"),
+        RemoteFile("-6_dB_fan.zip", 1, "md5:c", "u"),
+        RemoteFile("6_dB_pump.zip", 1, "md5:d", "u"),
+    ]
+    assert [f.key for f in filter_by_machine_type(files, "fan")] == [
+        "6_dB_fan.zip",
+        "0_dB_fan.zip",
+        "-6_dB_fan.zip",
+    ]
 
 
 def _remote_for(path: Path) -> RemoteFile:
@@ -213,3 +228,37 @@ def test_main_download_all(tmp_path: Path, monkeypatch) -> None:
     assert main(["--config", str(_config_file(tmp_path)), "--download", "--all"]) == 0
     assert (tmp_path / "mimii" / "6_dB_fan.zip").is_file()
     assert (tmp_path / "mimii" / "0_dB_pump.zip").is_file()
+
+
+def test_main_list_filters_by_machine_type(tmp_path: Path, monkeypatch, capsys) -> None:
+    entries = []
+    for name in ("6_dB_fan.zip", "0_dB_fan.zip", "-6_dB_fan.zip", "6_dB_pump.zip"):
+        path = tmp_path / name
+        path.write_bytes(b"x")
+        entries.append(_entry(path))
+    monkeypatch.setattr(download, "fetch_record", lambda *a, **k: {"files": entries})
+
+    assert main(["--config", str(_config_file(tmp_path)), "--list"]) == 0
+    out = capsys.readouterr().out
+    assert out.count(".zip") == 3
+    assert "6_dB_pump.zip" not in out
+
+
+def test_delete_zip_requires_extract(tmp_path: Path, monkeypatch) -> None:
+    source = tmp_path / "6_dB_fan.zip"
+    source.write_bytes(b"x")
+    monkeypatch.setattr(download, "fetch_record", lambda *a, **k: {"files": [_entry(source)]})
+    with pytest.raises(SystemExit):
+        main(["--config", str(_config_file(tmp_path)), "--download", "--delete-zip"])
+
+
+def test_main_extract_and_delete_zip(tmp_path: Path, monkeypatch) -> None:
+    archive = tmp_path / "6_dB_fan.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("6_dB_fan/id_00/normal/a.wav", b"RIFF")
+    monkeypatch.setattr(download, "fetch_record", lambda *a, **k: {"files": [_entry(archive)]})
+
+    flags = ["--download", "--extract", "--delete-zip"]
+    assert main(["--config", str(_config_file(tmp_path)), *flags]) == 0
+    assert (tmp_path / "mimii" / "6_dB_fan" / "id_00" / "normal" / "a.wav").is_file()
+    assert not (tmp_path / "mimii" / "6_dB_fan.zip").exists()

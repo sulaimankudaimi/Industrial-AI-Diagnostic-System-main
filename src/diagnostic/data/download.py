@@ -161,6 +161,20 @@ def select_files(files: list[RemoteFile], machine_type: str, snr_db: int) -> lis
     return matches
 
 
+def filter_by_machine_type(files: list[RemoteFile], machine_type: str) -> list[RemoteFile]:
+    """Return every ``*_<machine_type>.zip`` entry (all SNR levels).
+
+    Args:
+        files: Remote files from the record.
+        machine_type: Machine class (e.g. ``"fan"``).
+
+    Returns:
+        Matching files in the order given.
+    """
+    suffix = f"_{machine_type}.zip"
+    return [remote for remote in files if remote.key.endswith(suffix)]
+
+
 def extract_zip(zip_path: str | Path, raw_dir: str | Path) -> list[str]:
     """Extract ``zip_path`` into ``raw_dir`` and return the member names."""
     destination = Path(raw_dir)
@@ -186,13 +200,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--all", action="store_true", help="Download every zip, not just the config."
     )
     parser.add_argument("--extract", action="store_true", help="Extract zips into raw_dir.")
+    parser.add_argument(
+        "--delete-zip",
+        action="store_true",
+        help="After a successful extraction, delete the downloaded zip (requires --extract).",
+    )
     parser.add_argument("--force", action="store_true", help="Re-download even if valid.")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     """Entry point for ``python -m diagnostic.data.download``."""
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.delete_zip and not args.extract:
+        parser.error("--delete-zip requires --extract")
+
     config = load_data_config(args.config)
     files = parse_record(fetch_record(args.record_id), args.record_id)
 
@@ -201,9 +224,18 @@ def main(argv: list[str] | None = None) -> int:
     else:
         selected = select_files(files, config.machine_type, config.snr_db)
 
-    print(f"record {args.record_id}: {len(files)} file(s); selected {len(selected)}")
-    for remote in selected:
-        print(f"  {remote.key}\t{remote.size} bytes\tmd5:{remote.md5}")
+    if args.list:
+        available = filter_by_machine_type(files, config.machine_type)
+        print(
+            f"record {args.record_id}: {len(files)} file(s); "
+            f"{len(available)} for machine_type={config.machine_type}"
+        )
+        for remote in available:
+            print(f"  {remote.key}\t{remote.size} bytes\tmd5:{remote.md5}")
+    else:
+        print(f"record {args.record_id}: {len(files)} file(s); selected {len(selected)}")
+        for remote in selected:
+            print(f"  {remote.key}\t{remote.size} bytes\tmd5:{remote.md5}")
 
     if not args.download:
         print("dry run (pass --download to actually fetch)")
@@ -216,6 +248,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.extract:
             extract_zip(destination, config.raw_dir)
             print(f"extracted {destination.name} into {config.raw_dir}")
+            if args.delete_zip:
+                destination.unlink()
+                print(f"deleted {destination}")
     return 0
 
 
