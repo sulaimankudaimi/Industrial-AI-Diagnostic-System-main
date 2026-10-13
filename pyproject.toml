@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "diagnostic"
 version = "0.1.0"
 description = "Acoustic anomaly detection for rotating industrial machines."
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "numpy>=2.4",
     "librosa>=0.11",
