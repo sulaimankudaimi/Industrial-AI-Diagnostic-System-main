@@ -18,6 +18,7 @@ Acoustic anomaly detection for rotating industrial machines. A reproducible, tes
 - Hooks:    python -m pre_commit run --all-files
 - Data:     python -m diagnostic.data.inspect  --config configs/data/mimii_fan_6db.yaml [--save-splits]
 - Fetch:    python -m diagnostic.data.download --config configs/data/mimii_fan_6db.yaml [--list | --download [--all] [--extract [--delete-zip]]]
+- Features: python -m diagnostic.features.extract --data-config configs/data/mimii_fan_6db.yaml --features-config configs/features/logmel_default.yaml --machine-id id_00 --seed 0 [--limit N] [--cache-dir DIR] [--out-dir DIR] [--pack PATH | --unpack PATH]
 
 ## Architecture rules
 - src layout, package "diagnostic": data, features, models, training, inference.
