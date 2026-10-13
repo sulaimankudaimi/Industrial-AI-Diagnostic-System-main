@@ -22,6 +22,7 @@ Detect abnormal machine sounds early, on a single physical machine, with very fe
 | D14 | Log-mel keeps the absolute level: mel = abs(STFT)**power then (20/power)*log10(mel+eps). No per-file normalization, no top_db clipping, no ref-based dB, no image detour. | Preserves loudness as a signal and removes the legacy train/serve mismatch. |
 | D15 | Standardization statistics are computed from the training split only and stored together with the feature config hash. | Prevents leakage from validation/test into the model input. |
 | D16 | Log-mel features are cached per file under data/cache/features/<config_hash>/... and are never committed. | Avoids recomputing STFTs while keeping results tied to an exact feature config. |
+| D17 | Supported Python: 3.11 (local development) to 3.13 (Google Colab). CI tests 3.11 and 3.13. Heavy jobs (download, feature extraction, training) run on Colab; the laptop is for development, light tests and later inference/hardware work. | Colab ships Python 3.13 today; the laptop stays on 3.11 where the venv is proven. |
 
 ## Roadmap (phases)
 F1 foundation -> F2 data pipeline (MIMII fan, 6 dB) -> F3 features -> F4 baseline autoencoder + evaluation -> F5 inference library, API and UI -> F6 packaging -> F7 hardware and own recordings -> F8 field pilot -> F9 monitoring.
