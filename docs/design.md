@@ -19,6 +19,9 @@ Detect abnormal machine sounds early, on a single physical machine, with very fe
 | D11 | MIMII zips extract under data/raw/mimii/<snr>_dB_<type>/id_XX/{normal,abnormal}/*.wav. Discovery tolerates extra nesting, always sorts, and never truncates. Channel 0 is selected. | Reproducible, stable file inventory; avoids the legacy os.listdir ordering bug. |
 | D12 | Downloads are opt-in (`--download`), resumable via HTTP Range, and MD5-verified against the Zenodo record metadata; the default is a dry-run listing, and `--delete-zip` removes a zip only after a verified extraction. | Large files, flaky links; never fetch implicitly and never trust a partial file. |
 | D13 | Splits are persisted as JSON manifests in data/splits/ named <type>_<snr>dB_<id>_seed<seed>.json, storing paths relative to raw_dir plus counts and a short content hash. | Auditable, portable, and diffable split definitions. |
+| D14 | Log-mel keeps the absolute level: mel = abs(STFT)**power then (20/power)*log10(mel+eps). No per-file normalization, no top_db clipping, no ref-based dB, no image detour. | Preserves loudness as a signal and removes the legacy train/serve mismatch. |
+| D15 | Standardization statistics are computed from the training split only and stored together with the feature config hash. | Prevents leakage from validation/test into the model input. |
+| D16 | Log-mel features are cached per file under data/cache/features/<config_hash>/... and are never committed. | Avoids recomputing STFTs while keeping results tied to an exact feature config. |
 
 ## Roadmap (phases)
 F1 foundation -> F2 data pipeline (MIMII fan, 6 dB) -> F3 features -> F4 baseline autoencoder + evaluation -> F5 inference library, API and UI -> F6 packaging -> F7 hardware and own recordings -> F8 field pilot -> F9 monitoring.
