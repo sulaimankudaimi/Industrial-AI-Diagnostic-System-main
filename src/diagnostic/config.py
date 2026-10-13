@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import hashlib
+import json
+from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +12,7 @@ import yaml
 
 VALID_MACHINE_TYPES: tuple[str, ...] = ("fan", "pump", "slider", "valve")
 VALID_SNR_DB: tuple[int, ...] = (-6, 0, 6)
+VALID_POWER: tuple[float, ...] = (1.0, 2.0)
 
 
 def _require_int(value: Any, field_name: str) -> int:
@@ -126,3 +129,117 @@ def load_data_config(path: str | Path) -> DataConfig:
         val_fraction=raw.get("val_fraction", 0.1),
         seeds=seeds,
     )
+
+
+CONFIG_HASH_LENGTH = 10
+
+
+def _require_float(value: Any, field_name: str) -> float:
+    """Return ``value`` as a float or raise ``ValueError`` for booleans/strings."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field_name} must be a number, got {value!r}")
+    return float(value)
+
+
+@dataclass(frozen=True)
+class FeatureConfig:
+    """Configuration for the shared log-mel feature pipeline.
+
+    All fields are tunable via YAML only (no magic numbers in code). Frequencies
+    are in Hz, ``power`` selects the spectrogram exponent, ``eps`` is the small
+    additive floor (linear power units) that keeps the log finite.
+
+    Attributes:
+        sample_rate: Expected sampling rate in Hz.
+        n_fft: STFT window length in samples (> 0).
+        hop_length: STFT hop in samples (> 0).
+        n_mels: Number of mel filterbank channels (> 0).
+        fmin: Lowest mel band edge in Hz (>= 0).
+        fmax: Highest mel band edge in Hz (<= sample_rate / 2).
+        power: Spectrogram exponent, either 1.0 (magnitude) or 2.0 (power).
+        eps: Additive floor inside the logarithm (> 0, linear units).
+        context_frames: Number of consecutive frames stacked per vector (>= 1).
+    """
+
+    sample_rate: int = 16000
+    n_fft: int = 1024
+    hop_length: int = 512
+    n_mels: int = 64
+    fmin: float = 0.0
+    fmax: float = 8000.0
+    power: float = 2.0
+    eps: float = 1e-10
+    context_frames: int = 5
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "fmin", float(self.fmin))
+        object.__setattr__(self, "fmax", float(self.fmax))
+        object.__setattr__(self, "power", float(self.power))
+        object.__setattr__(self, "eps", float(self.eps))
+
+        if _require_int(self.sample_rate, "sample_rate") <= 0:
+            raise ValueError(f"sample_rate must be positive, got {self.sample_rate!r}")
+        if _require_int(self.n_fft, "n_fft") <= 0:
+            raise ValueError(f"n_fft must be positive, got {self.n_fft!r}")
+        if _require_int(self.hop_length, "hop_length") <= 0:
+            raise ValueError(f"hop_length must be positive, got {self.hop_length!r}")
+        if _require_int(self.n_mels, "n_mels") <= 0:
+            raise ValueError(f"n_mels must be positive, got {self.n_mels!r}")
+        if _require_int(self.context_frames, "context_frames") < 1:
+            raise ValueError(f"context_frames must be >= 1, got {self.context_frames!r}")
+        if self.fmin < 0.0:
+            raise ValueError(f"fmin must be >= 0, got {self.fmin!r}")
+        if self.fmax <= self.fmin:
+            raise ValueError(f"fmax must be greater than fmin, got fmax={self.fmax!r}")
+        nyquist = self.sample_rate / 2.0
+        if self.fmax > nyquist:
+            raise ValueError(f"fmax must be <= sample_rate / 2 ({nyquist}), got {self.fmax!r}")
+        if self.power not in VALID_POWER:
+            raise ValueError(f"power must be one of {VALID_POWER}, got {self.power!r}")
+        if self.eps <= 0.0:
+            raise ValueError(f"eps must be > 0, got {self.eps!r}")
+
+    def config_hash(self) -> str:
+        """Return a stable short hash (first 10 hex chars of SHA-1) of the config.
+
+        The hash is computed from the canonical (sorted-key, compact) JSON of all
+        fields, so any parameter change yields a different cache folder.
+        """
+        payload = {field.name: getattr(self, field.name) for field in fields(self)}
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha1(canonical.encode("utf-8")).hexdigest()[:CONFIG_HASH_LENGTH]
+
+
+_ALLOWED_FEATURE_KEYS: tuple[str, ...] = tuple(field.name for field in fields(FeatureConfig))
+
+
+def load_feature_config(path: str | Path) -> FeatureConfig:
+    """Load and validate a :class:`FeatureConfig` from a YAML file.
+
+    Args:
+        path: Path to a YAML file describing the feature pipeline.
+
+    Returns:
+        A validated frozen :class:`FeatureConfig`.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        ValueError: If the YAML is malformed or a field is missing/invalid.
+    """
+    file_path = Path(path)
+    if not file_path.is_file():
+        raise FileNotFoundError(f"config file not found: {file_path}")
+
+    with file_path.open("r", encoding="utf-8") as handle:
+        raw = yaml.safe_load(handle)
+
+    if raw is None:
+        raise ValueError(f"config file is empty: {file_path}")
+    if not isinstance(raw, dict):
+        raise ValueError(f"config root must be a mapping in {file_path}, got {type(raw).__name__}")
+
+    unknown = [key for key in raw if key not in _ALLOWED_FEATURE_KEYS]
+    if unknown:
+        raise ValueError(f"unknown key(s) {unknown} in {file_path}")
+
+    return FeatureConfig(**raw)

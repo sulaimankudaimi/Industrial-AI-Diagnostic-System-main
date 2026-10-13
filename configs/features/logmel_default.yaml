@@ -1,0 +1,10 @@
+# Shared log-mel feature pipeline (decision D5 / D7). All values are tunable here.
+sample_rate: 16000
+n_fft: 1024
+hop_length: 512
+n_mels: 64
+fmin: 0.0
+fmax: 8000.0
+power: 2.0
+eps: 1.0e-10
+context_frames: 5
