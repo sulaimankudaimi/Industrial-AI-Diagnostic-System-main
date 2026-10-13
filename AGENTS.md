@@ -9,6 +9,7 @@ Acoustic anomaly detection for rotating industrial machines. A reproducible, tes
 
 ## Environment
 - Windows 10, PowerShell, no admin rights, CPU only. Python 3.11 venv at .venv; always call .\.venv\Scripts\python.exe.
+- Supported Python 3.11-3.13; Colab runs 3.13.
 - Windows username is non-ASCII. Before running tools set: PYTHONUTF8=1, PIP_CACHE_DIR, NUMBA_CACHE_DIR, KERAS_HOME, MPLCONFIGDIR, PRE_COMMIT_HOME (all under D:\cache).
 
 ## Commands
